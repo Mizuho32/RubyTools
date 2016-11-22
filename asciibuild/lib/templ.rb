@@ -1,0 +1,26 @@
+
+def js(file, port)
+<<-"EOF"
+<script>
+(()=>{
+  let ws = new WebSocket("ws://localhost:#{port}");
+
+  ws.onopen = ()=>{
+    ws.send("#{file}");
+  };
+
+  ws.onmessage =  (e)=>{
+    location.reload();
+  };
+
+})()
+</script>
+EOF
+end
+
+def insert(src, script)
+  doc = Oga.parse_html(src)
+  spt = Oga.parse_html(script)
+  ( nodeset = doc.at_xpath("html/head").children ).insert( nodeset.size, spt.at_xpath("script") )
+  doc
+end

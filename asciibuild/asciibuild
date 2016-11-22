@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+# coding:utf-8
+
+
+PATH = ENV["PATH"]
+
+require 'open3'
+require 'pp'
+
+require 'bundler'
+Bundler.require
+
+module Main
+
+require 'pathname'
+$: << FILE_DIR = (Pathname(File.readlink(__FILE__)) rescue Pathname(__FILE__)).dirname.expand_path 
+
+  Commands = [:server, :init, :help, :install]
+  FILE = File.basename(__FILE__)
+
+  unless Commands.include?(COMMAND =  ARGV[0]&.to_sym) then
+    $stderr.puts <<-"EOF"
+  Usage:
+  $ #{FILE} command [opts..]
+
+  commands:
+    server  [ws_port http_port base_dir] : launch server
+    init    [asciidoc_file_name]         : init current dir
+    install [target_dir]                 : install
+  EOF
+    exit 1
+  end
+  #pp $: 
+  require "lib/#{COMMAND}" if (Commands.include? COMMAND)
+end
