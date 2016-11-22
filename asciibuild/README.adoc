@@ -1,5 +1,10 @@
 # Autobuild tool for asciidoctor
 
+## Requirements
+* MRI (Ruby >= 2.3)
+* asciidoctor
+* bundle
+
 ## install
 ```bash
 $ bundle install --path vendor/bundle
