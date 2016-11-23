@@ -6,7 +6,7 @@ module Install
     f.write <<-"EOF"
 #!/bin/sh
 
-BUNDLE_GEMFILE=#{Main::FILE_DIR}/Gemfile #{Main::FILE_DIR}/asciibuild "$@"
+BUNDLE_GEMFILE=#{Main::FILE_DIR}/Gemfile #{Main::FILE_DIR}/#{Main::FILE} "$@"
 EOF
   FileUtils.chmod("u+x", "#{TargetDir}/#{Main::FILE}")
   }
