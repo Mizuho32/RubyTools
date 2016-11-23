@@ -1,0 +1,20 @@
+# Autoconfig tool for Eclipse with mbedCLI
+
+## Requirements
+* MRI (Ruby >= 2.3)
+* mbedCLI
+* Eclipse
+
+## install
+```bash
+$ bundle install --path vendor/bundle
+$ ./mbed-eclipse install target_path # PATH should include target_path
+```
+## Usage
+. Setup mbedCLI project and Eclipse Makefile project.
+. Close the Eclipse Project and run,
+```bash
+$ mbed-eclipse init [os_version workspace_dir] # defaults : 5  ~/workspace 
+```
+. Open Project and Refresh from project right click menu.
+. Index -> Rebuild
