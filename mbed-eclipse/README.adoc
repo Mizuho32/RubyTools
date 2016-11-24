@@ -13,10 +13,12 @@ $ ./mbed-eclipse install target_path # PATH should include target_path
 ```
 ## Usage
 
-1; Setup mbedCLI project and Eclipse Makefile project.           
+1::
+Setup mbedCLI project and Eclipse Makefile project.
 
 
-2; Make config.yaml     
+2::
+List items to give eclipse in config.yaml
 
 ```yaml
 :symbols: 
@@ -27,12 +29,18 @@ $ ./mbed-eclipse install target_path # PATH should include target_path
   - INCLUDE_PATHS
 ```
  
-3; Close the Eclipse Project and run,       
+3::
+Close the Eclipse Project and run,       
 
 ```bash
-$ mbed-eclipse init [os_version workspace_dir] # defaults : 5  ~/workspace 
+$ mbed-eclipse init [os_version workspace_dir usr_dir] # defaults : 5  ~/workspace ~/usr
 ```
+[WARNING]
+====
+for such gcc-arm launchpad distributing, `usr_dir` is gcc-arm root. ( gcc-arm-none-eabi-X_X-20XXqX/ )
+====
+4::
+Open Project and Refresh from project right click menu.  
 
-4; Open Project and Refresh from project right click menu.  
-
-5; Index -> Rebuild
+5::
+Index -> Rebuild (Freshen All Files needed ?)
