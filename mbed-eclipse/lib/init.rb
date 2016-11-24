@@ -6,6 +6,8 @@ module Init
 
   OS = ARGV[1] || 5
   WORKSPACE_DIR = Pathname(ARGV[2] || "~/workspace").expand_path
+  USR = Pathname(ARGV[3] || "/usr").expand_path
+  GCC_VER = `#{USR}/bin/arm-none-eabi-gcc -dumpversion`.chomp rescue nil
 
   def backup
     return if File.exists?("backup")
@@ -38,12 +40,12 @@ module Init
   <language id="#{type}">
     <resource project-relative-path="">
       <entry kind="macroFile" name="/${ProjName}/#{name}">
-        <flag value="LOCAL|VALUE_WORKSPACE_PATH" />
+        <flag value="BUILTIN|VALUE_WORKSPACE_PATH" />
       </entry>
       <entry kind="includeFile" name="/${ProjName}/mbed_config.h">
-        <flag value="LOCAL|VALUE_WORKSPACE_PATH"/>
+        <flag value="BUILTIN|VALUE_WORKSPACE_PATH"/>
       </entry>
-#{type.to_s.include?("g++") ? Init.include_entries : ""}
+#{type.to_s =~ /g(?:\+\+|cc)/ ? Init.include_entries + Init.gcc_includes : ""}
     </resource>
   </language>
 EOF
@@ -88,24 +90,39 @@ EOF
     }.map{|n|
       <<-"EOF"
       <entry kind="includePath" name="/${ProjName}/#{n}">
-        <flag value="LOCAL|VALUE_WORKSPACE_PATH" />
+        <flag value="BUILTIN|VALUE_WORKSPACE_PATH" />
       </entry>
 EOF
     }.join
-=begin
-    cproject = Oga.parse_xml(File.read("#{DIR}/.cproject"))
-    nodes = [:assembler, :'c.compiler', :'cpp.compiler'].inject({}){|o,tool|
-      tmp = o[tool] = cproject.at_xpath("cproject/storagemodule[@moduleId='org.eclipse.cdt.core.settings']/cconfiguration/storagemodule[@moduleId='cdtBuildSystem']/configuration/folderinfo/toolchain/tool[@superClass='ilg.gnuarmeclipse.managedbuild.cross.tool.#{tool}']") 
-      puts tool
-      includes.children.each{|e| (pp tmp.at_xpath("option")).children << e}
-      #puts tmp.to_xml
-      o
-    }
-<listOptionValue builtIn="false" value="&quot;${workspace_loc:/#{PROJ_NAME}/#{n}}&quot;" />
-=end
+  end
+
+  def gcc_includes
+     includes = [
+      "#{Init::USR}/bin/arm-none-eabi-gcc -E -Wp,-v - 2>&1", 
+      "#{Init::USR}/bin/arm-none-eabi-gcc -x c++ -E -Wp,-v - 2>&1"]
+      .map{|cmd| 
+        Open3.capture3(cmd)[0].split("\n").select{|line| line =~ /^\s+\//}
+          .map{|path| File.expand_path(path.strip, "/") }
+      }.flatten
+    includes.select{|path| !File.exists?(path) }.each{|path| $stderr.puts "WARNIG!",path,"seems not to exist\n\n" }
+
+    includes.map{|path|
+    <<-"EOF"
+      <entry kind="includePath" name="#{path}">
+        <flag value="BUILTIN"/>
+      </entry>
+EOF
+    }.join
   end
  
 end
+
+unless system "#{Init::USR}/bin/arm-none-eabi-gcc --version" then
+    $stderr.puts "invalid usr_dir."
+    exit(1)
+end
+
+#puts Init.gcc_includes
 
 Init.filter_symbols
 Init.backup

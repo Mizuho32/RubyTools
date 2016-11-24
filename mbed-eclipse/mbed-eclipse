@@ -24,9 +24,9 @@ $: << FILE_DIR = (Pathname(File.readlink(__FILE__)) rescue Pathname(__FILE__)).d
   $ #{FILE} command [opts..]
 
   commands:
-    init    [os_version workspace_dir]  : init current dir
-    restore                             : restore configs
-    install [target_dir]                : install
+    init    [os_version workspace_dir usr_dir]  : init current dir
+    restore [workspace_dir]                     : restore configs
+    install [target_dir]                        : install
   EOF
     exit 1
   end
