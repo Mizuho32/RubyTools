@@ -6,15 +6,33 @@
 * Eclipse
 
 ## install
+
 ```bash
 $ bundle install --path vendor/bundle
 $ ./mbed-eclipse install target_path # PATH should include target_path
 ```
 ## Usage
-. Setup mbedCLI project and Eclipse Makefile project.
-. Close the Eclipse Project and run,
+
+1; Setup mbedCLI project and Eclipse Makefile project.           
+
+
+2; Make config.yaml     
+
+```yaml
+:symbols: 
+  - C_FLAGS
+  - ASM_FLAGS
+  - CXX_FLAGS
+:includes:
+  - INCLUDE_PATHS
+```
+ 
+3; Close the Eclipse Project and run,       
+
 ```bash
 $ mbed-eclipse init [os_version workspace_dir] # defaults : 5  ~/workspace 
 ```
-. Open Project and Refresh from project right click menu.
-. Index -> Rebuild
+
+4; Open Project and Refresh from project right click menu.  
+
+5; Index -> Rebuild
