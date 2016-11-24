@@ -10,7 +10,7 @@
 
 ```bash
 $ bundle install --path vendor/bundle
-$ ./mbed-eclipse install target_path # PATH should include target_path
+$ ./mbed-eclipse install [install_dir] # $PATH should include install_dir, or ~/bin as default
 ```
 ## Usage
 
@@ -31,17 +31,29 @@ List items to give eclipse in config.yaml
 ```
  
 3::
-Close the Eclipse Project and run,       
+Close the Eclipse Project and in project dir, run:
 
 ```bash
 $ mbed-eclipse init [os_version workspace_dir usr_dir] # defaults : 5  ~/workspace ~/usr
 ```
-[WARNING]
+[NOTE]
 ====
 for such gcc-arm launchpad distributing, `usr_dir` is gcc-arm root. ( gcc-arm-none-eabi-X_X-20XXqX/ )
+====
+[WARNING]
+====
+`mbed-eclipse init` appneds configs to  Eclipse setting files. When `mbed-eclipse init` again, NOT TO FORGET to run `mbed-eclipse restore` before.
 ====
 4::
 Open Project and Refresh from project right click menu.  
 
 5::
 Index -> Rebuild (Freshen All Files needed ?)
+
+### CLI Usage
+
+  $ mbed-eclipse command [opts..]
+  commands:
+    init    [os_version workspace_dir usr_dir]  : init current dir
+    restore [workspace_dir]                     : restore configs
+    install [install_dir]                       : install
