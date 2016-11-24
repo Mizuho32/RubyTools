@@ -4,6 +4,7 @@
 * MRI (Ruby >= 2.3)
 * mbedCLI
 * Eclipse
+* Linux, Mac, (Windows???)
 
 ## install
 
