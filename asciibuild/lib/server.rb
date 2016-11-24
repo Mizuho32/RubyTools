@@ -71,7 +71,7 @@ EOF
   }
 
   FileWatcher.new(["#{DIR}/**/*.adoc"]).watch do |fullname|
-    name = fullname[/^([\w|\/|\.]+)\.adoc$/, 1]
+    name = fullname.sub(/\.adoc$/, "")
     p fullname, name
 
     #puts Open3.capture3({"PATH" => PATH}, "pwd")
