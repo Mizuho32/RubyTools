@@ -1,9 +1,9 @@
 
 def js(file, port)
 <<-"EOF"
-<script>
+<script type="application/javascript;version=1.7">
 (()=>{
-  let ws = new WebSocket("ws://localhost:#{port}");
+  var ws = new WebSocket("ws://localhost:#{port}");
 
   ws.onopen = ()=>{
     ws.send("#{file}");
