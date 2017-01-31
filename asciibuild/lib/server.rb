@@ -88,6 +88,6 @@ EOF
     File.open("#{name}.html", "w"){|f|
       f.write(out.to_xml)
     }
-    @documents[key]&.send("hi")
+    @documents[key].send("hi") if @documents[key]
   end
 end

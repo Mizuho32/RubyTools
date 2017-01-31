@@ -1,7 +1,7 @@
 
 def js(file, port)
 <<-"EOF"
-<script type="application/javascript;version=1.7">
+<script>
 (()=>{
   var ws = new WebSocket("ws://localhost:#{port}");
 
