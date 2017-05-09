@@ -26,6 +26,9 @@ def insert(src, script)
   ( nodeset = doc.at_xpath("html/head").children ).insert( nodeset.size, spt.at_xpath("script") )
 
   # mathJax numbering
-  doc.at_xpath('//script[@type="text/x-mathjax-config"]').children.first.text[/autoNumber:\s*"([^"]+)"/,1] = "AMS"
+  if mathconf = doc.at_xpath('//script[@type="text/x-mathjax-config"]') then
+    mathconf.children.first.text[/autoNumber:\s*"([^"]+)"/,1] = "AMS"
+  end
+
   doc
 end
