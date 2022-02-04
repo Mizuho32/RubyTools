@@ -14,3 +14,32 @@ def html2musiclist2(doc)
   
   names.zip(urls).map{|e| {name: e.first, url: e.last}}
 end
+
+
+def get_until(tube, id, title_reg, video_id_reg=/^$/, max_results: 5)
+  page_token = nil
+  videos = []
+
+  loop do
+    res = tube.list_playlist_items('snippet,contentDetails', playlist_id: id.to_s, max_results: max_results, page_token: page_token)
+    page_token = res.next_page_token
+
+    filtered = res.items.map{|itm|
+      title, video_id = itm.snippet.title, itm.content_details.video_id
+
+      [title, video_id]
+    }.take_while{|(title, video_id)|
+      not (title_reg =~ title or video_id_reg =~ video_id)
+    }.each{|(title, video_id)|
+      #puts title
+      videos << {title: title, video_id: video_id}
+    }
+
+    is_hit = filtered.size < max_results
+    #p filtered, page_token
+
+    break if is_hit or page_token.to_s.empty?
+  end
+
+  return videos
+end
