@@ -7,3 +7,10 @@ git_source(:github) {|repo_name| "https://github.com/#{repo_name}" }
 gem "oga"
 gem "pry"
 gem "pry-coolline"
+
+gem "irb"
+gem "rdoc"
+gem "htmlbeautifier"
+gem "google-apis-youtube_v3"
+gem "rake"
+gem "iruby"
