@@ -23,5 +23,5 @@ videos = get_until(tube, ARGV[2].to_s, Regexp.new(Regexp.escape(list[-1][:name])
 puts "Delta: \n#{videos.map{|itm| itm[:name]}.join("\n")}\n------"
 
 yml = (list + videos).to_yaml
-puts yml
+#puts yml
 File.write(ARGV.first, yml)
