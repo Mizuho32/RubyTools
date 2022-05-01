@@ -1,0 +1,27 @@
+= Format timestamps of YouTube
+
+.Example
+[source, bash]
+----
+$ echo "
+8:38 残響散歌 / Zankyo Sanka | Aimer
+14:43 水平線 / Suiheisen | back number
+24:30 少女レイ / Shohjo Rei | みきとP (MikitoP)
+35:53 神っぽいな / God-ish | ピノキオピー (pinocchiop)
+43:44 ヴィラン / villain | てにをは (teniwoha)
+50:37 ルマ / Ruma | かいりきベア feat. 初音ミク (Kairiki bear feat. Hatsune Miku)
+59:33 独りんぼエンヴィー / Hitorinbo Envy | 電ポルP (DenporuP)
+1:05:51 キュートなカノジョ / cute na kanojo | syudou
+1:13:49 阿修羅ちゃん / Ashura chan | Ado" | ./setlist.rb
+
+
+00:08:38 残響散歌 / Zankyo Sanka | Aimer
+00:14:43 水平線 / Suiheisen | back number
+00:24:30 少女レイ / Shohjo Rei | みきとP (MikitoP)
+00:35:53 神っぽいな / God-ish | ピノキオピー (pinocchiop)
+00:43:44 ヴィラン / villain | てにをは (teniwoha)
+00:50:37 ルマ / Ruma | かいりきベア feat. 初音ミク (Kairiki bear feat. Hatsune Miku)
+00:59:33 独りんぼエンヴィー / Hitorinbo Envy | 電ポルP (DenporuP)
+01:05:51 キュートなカノジョ / cute na kanojo | syudou
+01:13:49 阿修羅ちゃん / Ashura chan | Ado
+----
