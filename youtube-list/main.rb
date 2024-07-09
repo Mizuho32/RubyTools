@@ -8,7 +8,7 @@ require 'google/apis/youtube_v3'
 
 require_relative "lib"
 
-# ARGV: list.yaml  apikey.txt  listid.txt
+# ARGV: list.yaml  apikey.txt  listid.txt [last_idx]
 
 listyaml = Pathname(ARGV.first)
 list = YAML.load_file(ARGV.first) rescue []
@@ -16,7 +16,9 @@ list = YAML.load_file(ARGV.first) rescue []
 tube = Google::Apis::YoutubeV3::YouTubeService.new
 tube.key = ARGV[1]
 
-last_name = list.empty? ? /^$/ :  Regexp.new(Regexp.escape(list[-1][:name]))
+last_idx = (ARGV[3] || -1).to_i
+
+last_name = list.empty? ? /^$/ :  Regexp.new(Regexp.escape(list[last_idx][:name]))
 videos = get_until(tube, ARGV[2].to_s, last_name, max_results: 10)
   .map{|itm|
     {name: itm[:title], url: "https://www.youtube.com/watch?v=#{ itm[:video_id] }" }
@@ -24,6 +26,8 @@ videos = get_until(tube, ARGV[2].to_s, last_name, max_results: 10)
 
 
 puts "Delta: \n#{videos.map{|itm| itm[:name]}.join("\n")}\n------"
+print "OK?>>"
+STDIN.gets
 
 yml = (list + videos).to_yaml
 #puts yml
