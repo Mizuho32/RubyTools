@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 require 'net/http'
 require 'uri'
 require 'json'
@@ -17,7 +19,7 @@ api_url = "http://#{ARGV[0]}"
 # REST APIにPOSTリクエストを送信
 uri = URI.parse(api_url)
 http = Net::HTTP.new(uri.host, uri.port)
-http.use_ssl = (uri.scheme == "https")
+#http.use_ssl = (uri.scheme == "https")
 
 request = Net::HTTP::Post.new(uri.request_uri, {'Content-Type' => 'application/json'})
 request.body = { data: input_data }.to_json
@@ -25,4 +27,4 @@ request.body = { data: input_data }.to_json
 response = http.request(request)
 
 # レスポンスを標準出力に出力
-$stderr.puts "Response from API: #{response.body}"
+#$stderr.puts "Response from API: #{response.body}"

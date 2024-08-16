@@ -7,4 +7,5 @@ source "https://rubygems.org"
 group :server do
   gem "sinatra"
   gem "json"
+  gem "rackup", "~> 2.1"
 end
