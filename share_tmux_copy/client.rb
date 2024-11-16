@@ -22,7 +22,7 @@ http = Net::HTTP.new(uri.host, uri.port)
 #http.use_ssl = (uri.scheme == "https")
 
 request = Net::HTTP::Post.new(uri.request_uri, {'Content-Type' => 'application/json'})
-request.body = { data: input_data }.to_json
+request.body = { data: input_data.strip }.to_json
 
 response = http.request(request)
 
