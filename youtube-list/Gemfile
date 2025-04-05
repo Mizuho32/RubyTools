@@ -4,14 +4,19 @@ source "https://rubygems.org"
 
 git_source(:github) {|repo_name| "https://github.com/#{repo_name}" }
 
-gem "oga"
-gem "pry"
-gem "pry-coolline"
-gem "json"
+group :html do
+  gem "oga"
+  gem "pry"
+  gem "pry-coolline"
+  gem "json"
+end
 
-gem "irb"
-gem "rdoc"
-gem "htmlbeautifier"
+group :develop do
+  gem "irb"
+  gem "rdoc"
+  gem "htmlbeautifier"
+  gem "rake"
+  gem "iruby"
+end
+
 gem "google-apis-youtube_v3"
-gem "rake"
-gem "iruby"
