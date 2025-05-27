@@ -42,7 +42,10 @@ if d_in_y[false]&.empty? == true then
     puts "  add #{idx} #{name}"
     yaml.insert(idx - 1, {name: name, url: url})
   }
-  File.write(yaml_path, yaml.to_yaml)
+  print('Update yaml?>>')
+  if not gets =~ /no?/i then
+    File.write(yaml_path, yaml.to_yaml)
+  end
 end
 
 if not downloadeds.map{|i, id, name| yaml_map.has_key? id }.all? then
