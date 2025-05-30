@@ -48,25 +48,11 @@ markdown_text = File.read(path)
 
 # ASTを取得
 doc = T.let(Commonmarker.parse(markdown_text), Commonmarker::Node)
-
-# AST内をwalkして、rubyコードブロックを探す
-# doc.walk do |node|
-#   node = T.let(node, Commonmarker::Node)
-#   if node.type == :code_block then #&& p node.fence_info == 'ruby'
-#     # ここでコード内容を置き換える
-#     #node.string_content += "puts 'Modified from script!'"
-#   elsif node.type == :heading then
-#     #puts node
-#   end
-# end
-
 head_code = LIB.head_nodes_pair(T.let(doc.each, T::Enumerator[Commonmarker::Node]))
 
 # p head_code.keys()
 #p Hash[head_code.map{|k,v| [k, v.map{_1.type}]}.to_a]
 # exit
-
-# pp head_code
 # puts head_code.size
 
 # select code block
