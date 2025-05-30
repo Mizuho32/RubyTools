@@ -9,4 +9,4 @@ else
   RUBY='ruby'
 fi
 
-$RUBY cheatcmd.rb "$@" | bat --language=markdown
+$RUBY cheatcmd.rb "$@" #| bat --language=markdown
