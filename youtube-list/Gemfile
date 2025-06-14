@@ -20,3 +20,6 @@ group :develop do
 end
 
 gem "google-apis-youtube_v3"
+gem "base64", "~> 0.3.0"
+gem "mutex_m", "~> 0.3.0"
+gem "sorbet-runtime", "~> 0.5.12176"
