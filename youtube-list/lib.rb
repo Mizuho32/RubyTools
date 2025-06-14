@@ -43,3 +43,25 @@ def get_until(tube, id, title_reg, video_id_reg=/^$/, max_results: 5)
 
   return videos
 end
+
+begin
+  host = ENV['HOST'].to_s
+  client_id = ENV['CID'].to_s
+  if !host.empty? && !client_id.empty? then
+    require 'remotestdio'
+    RemoteSTDIO.init(host, client_id)
+  end
+rescue LoadError => ex
+  puts ex.message
+  puts "WARN puts without remotestdio"
+  NO_REMOTESTDIO = true
+end
+
+def safe_gets()
+  if defined? NO_REMOTESTDIO then
+    return STDIN.gets
+  else
+    return gets
+  end
+end
+
