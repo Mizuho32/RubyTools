@@ -14,7 +14,7 @@ begin
 
 yaml_path = Pathname(ARGV.first)
 target_dir = yaml_path.dirname
-puts "Download #{target_dir}"
+puts "## Download #{target_dir}"
 
 downloadeds = target_dir
   .glob("*")
