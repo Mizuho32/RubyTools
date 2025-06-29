@@ -9,6 +9,9 @@ require 'google/apis/youtube_v3'
 require_relative "lib"
 
 begin
+
+$strio = if defined? RemoteSTDIO then StringIO.new else $stdout end
+
 # ARGV: list.yaml  apikey.txt  listid.txt [last_idx]
 
 listyaml = Pathname(ARGV.first)
@@ -16,8 +19,10 @@ list = YAML.load_file(ARGV.first) rescue []
 
 tube = Google::Apis::YoutubeV3::YouTubeService.new
 tube.key = ARGV[1]
-
 last_idx = (ARGV[3] || -1).to_i
+
+$strio.puts("## Start #{listyaml} backup #{Time.now.iso8601}")
+
 
 last_name = list.empty? ? /^$/ :  Regexp.new(Regexp.escape(list[last_idx][:name]))
 videos = get_until(tube, ARGV[2].to_s, last_name, max_results: 10)
@@ -26,10 +31,12 @@ videos = get_until(tube, ARGV[2].to_s, last_name, max_results: 10)
   }.reverse
 
 if videos.empty? then
-  puts "No update for #{listyaml}. End."
+  $strio.puts "No update for #{listyaml}. End."
+  puts $strio.string if $strio.is_a?(StringIO)
   exit
 end
 
+puts $strio.string if $strio.is_a?(StringIO)
 print """
 Delta:
 #{videos.map{|itm| itm[:name]}.join("\n")}
@@ -38,7 +45,7 @@ OK?>>"""
 ret = safe_gets()
 
 if !ret.downcase.include?(?y) then
-  puts 'End'
+  puts 'Delta not OK. End'
   exit
 end
 
