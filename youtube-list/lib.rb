@@ -50,6 +50,9 @@ begin
   if !host.empty? && !client_id.empty? then
     require 'remotestdio'
     RemoteSTDIO.init(host, client_id)
+  else
+    NO_REMOTESTDIO = true
+    puts "WARN puts without remotestdio"
   end
 rescue LoadError => ex
   puts ex.message
