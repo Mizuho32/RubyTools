@@ -116,9 +116,7 @@ if newly_downloads.empty? then
   exit
 end
 
-last_idx = (ARGV[1]|| -1).to_i
-last_index = downloadeds[last_idx].first
-puts "Last_index #{last_index} #{last_idx}"
+last_index = yaml_map.size + 1
 
 result = newly_downloads.each_with_index.map{|(id, _), i|
   next if yaml_map[id][:skip]
