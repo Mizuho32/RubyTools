@@ -61,11 +61,15 @@ videonames = videos.map{|itm| itm[:name]}
 diff = `git diff #{listyamlname}`
 cmd = "git add #{listyamlname} && git commit -m '#{listyamlname} #{videonames.first} - #{videonames[-1]}'"
 print """
-Diff is:
+**Diff is:**
+```
 #{diff}
----
-will run:
+```
+
+**will run:*
+```bash
 $ #{cmd}
+```
 Diff OK? >>"""
 
 if safe_gets().downcase.include?(?y) then
