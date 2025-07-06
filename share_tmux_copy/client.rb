@@ -11,10 +11,16 @@ input_data = $stdin.read
 # 標準出力に出力
 puts input_data
 
-exit(0) if ARGV[0].nil?
+host_port = ARGV.first
+exit(0) if host_port.nil?
+
+port = 8001
+
+# For $SSH_CLIENT like '192.168.0.1 12345 22'
+host_port = "#{host_port[/(?<host>[^\s]+)\s/, :host]}:#{port}" if !host_port.include?(?:)
 
 # REST APIのエンドポイントURLを指定
-api_url = "http://#{ARGV[0]}"
+api_url = "http://#{host_port}"
 
 # REST APIにPOSTリクエストを送信
 uri = URI.parse(api_url)
