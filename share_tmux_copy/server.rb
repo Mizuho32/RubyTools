@@ -15,7 +15,7 @@ post '/' do
     command = "xsel -i --clipboard"
 
     IO.popen(command, "r+") do |io|
-      io.puts input_data
+      io.print input_data
       io.close_write
 
       puts "xsel: #{io.read}"
