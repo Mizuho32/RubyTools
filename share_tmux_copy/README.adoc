@@ -1,0 +1,8 @@
+# Send tmux copy to remote
+
+Launch server first.
+tmux.conf is like:
+
+```tmux.conf
+bind-key -T copy-mode-vi Enter send -X copy-pipe-and-cancel "cat | /path/to/client.rb host:port | xsel -i --clipboard"
+```
