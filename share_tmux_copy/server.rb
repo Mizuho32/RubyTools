@@ -33,5 +33,5 @@ get '/test' do
 end
 
 # サーバーを起動するための設定
-set :port, ARGV[0].to_i
+set :port, (ARGV[0] || 8001).to_i
 set :bind, "0.0.0.0"
