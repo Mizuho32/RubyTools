@@ -108,7 +108,9 @@ y_in_d = yaml_map.keys.each_with_index.group_by{|id, idx|
 }
 
 newly_downloads = (y_in_d[false]||[])
-  .select{|id, idx| yaml_map[id][:name] !~ /^(delete|private)/i }
+  .select{|id, idx|
+    item = yaml_map[id]
+    item[:name] !~ /^(delete|private)/i && !item[:skip] }
   .sort{|(_, idxl),(_,idxr)| idxl <=> idxr }
 
 if newly_downloads.empty? then
@@ -116,12 +118,8 @@ if newly_downloads.empty? then
   exit
 end
 
-last_index = yaml_map.size + 1
 
-result = newly_downloads.each_with_index.map{|(id, _), i|
-  next if yaml_map[id][:skip]
-
-  idx = last_index + i
+result = newly_downloads.each_with_index.map{|(id, idx), i|
   url = yaml_map[id][:url]
   durations = yaml_map[id][:durations] || ['']
   out = durations.map {|duration|
