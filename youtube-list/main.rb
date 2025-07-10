@@ -66,7 +66,7 @@ print """
 #{diff}
 ```
 
-**will run:*
+**will run:**
 ```bash
 $ #{cmd}
 ```
