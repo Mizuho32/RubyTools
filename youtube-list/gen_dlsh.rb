@@ -122,9 +122,18 @@ end
 result = newly_downloads.each_with_index.map{|(id, idx), i|
   url = yaml_map[id][:url]
   durations = yaml_map[id][:durations] || ['']
-  out = durations.map {|duration|
-    durat_txt = if duration.empty? then duration else "_#{duration}" end
-    durat_opt = if duration.empty? then ' --match-filter "duration < 1200"' else %Q|--download-sections "*#{duration}"| end
+  durations_is_array = durations.is_a?(Array)
+  durations = durations.each_with_index if durations_is_array # Array or Hash
+  out = durations.map {|idx_or_name, duration|
+    idx_or_name, duration = duration, idx_or_name if durations_is_array
+    durat_txt = if duration.empty? then duration else "_#{idx_or_name}_#{duration}" end
+    durat_opt = if duration.empty? then
+                  if yaml_map[id][:force] then
+                    ''
+                  else
+                    ' --match-filter "duration < 1200"'
+                  end
+                else %Q|--download-sections "*#{duration}"| end
     
     out_path = (target_dir / "#{idx.succ} - %(title)s#{durat_txt} %(id)s.%(ext)s").to_s
     cmd = %Q|yt-dlp -o "#{out_path}" #{durat_opt} "#{url}"|
