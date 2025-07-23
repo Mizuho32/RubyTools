@@ -16,6 +16,7 @@ $strio = if defined? RemoteSTDIO then StringIO.new else $stdout end
 
 listyaml = Pathname(ARGV.first)
 list = YAML.load_file(ARGV.first) rescue []
+list = list.reverse if ENV['REVERSE']
 
 tube = Google::Apis::YoutubeV3::YouTubeService.new
 tube.key = ARGV[1]
