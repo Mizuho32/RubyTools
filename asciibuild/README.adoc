@@ -1,0 +1,16 @@
+# Autobuild tool for asciidoctor
+
+## Requirements
+* MRI (Ruby >= 2.3)
+* asciidoctor
+* bundle
+
+## install
+```bash
+$ bundle install --path vendor/bundle
+$ ./asciibuild install target_path # PATH should include target_path
+```
+## Usage
+```bash
+$ asciibuild init filename # default filename is hello.adoc.  generates filename.adoc, css/ highlight/ img/
+$ asciibuild server ws_port http_port base_dir # default is, 5000 4000 .
