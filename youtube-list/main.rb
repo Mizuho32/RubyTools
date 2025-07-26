@@ -20,16 +20,39 @@ list = list.reverse if ENV['REVERSE']
 
 tube = Google::Apis::YoutubeV3::YouTubeService.new
 tube.key = ARGV[1]
-last_idx = (ARGV[3] || -1).to_i
+listid_yaml = YAML.load_file(ARGV[2])
+listid = listid_yaml[:id]
+last_idx = ( (!ARGV[3].to_s.empty? && ARGV[3]) || -1).to_i
+obs_page_name = listid_yaml[:name]
+OBS_DIR = Pathname(ENV['OBS_DIR'].to_s)
 
 $strio.puts("## Start #{listyaml} backup #{Time.now.iso8601}")
 
-
+# fetch
 last_name = list.empty? ? /^$/ :  Regexp.new(Regexp.escape(list[last_idx][:name]))
-videos = get_until(tube, ARGV[2].to_s, last_name, max_results: 10)
+videos = get_until(tube, listid, last_name, max_results: 10)
   .map{|itm|
     {name: itm[:title], url: "https://www.youtube.com/watch?v=#{ itm[:video_id] }" }
   }.reverse
+
+music_list = list + videos
+
+# Markdown out
+#puts(obs_page_name, OBS_DIR)
+if !obs_page_name.to_s.empty? && OBS_DIR.exist? then
+  markdown_path = OBS_DIR / "#{obs_page_name}.md"
+  markdown = """## [#{obs_page_name}](https://youtube.com/playlist?list=#{listid})
+#music
+
+#{music_list
+    .select{|item| /^(?:priv|dele)/i !~ item[:name] }
+    .map{|item| "- [#{item[:name].gsub(/(\[|\])/, '\\\\' + '\1')}](#{item[:url]})"}
+    .join("\n")
+}
+"""
+  #puts(markdown_path, markdown)
+  File.write(markdown_path, markdown) if !markdown_path.exist? || !videos.size.zero?
+end
 
 if videos.empty? then
   $strio.puts "No update for #{listyaml}. End."
@@ -50,8 +73,8 @@ if !ret.downcase.include?(?y) then
   exit
 end
 
-yml = (list + videos).to_yaml
-#puts yml
+# Output yaml
+yml = music_list.to_yaml
 File.write(listyaml, yml)
 
 ## git commit
@@ -82,6 +105,6 @@ else
 end
 
 rescue StandardError => ex
-  puts("Error: #{__FILE__} #{ARGV.join(' ')}}", ex.message, ex.backtrace.join("\n"))
+  puts("Error: #{__FILE__} #{ARGV.join(' ')}", ex.message, ex.backtrace.join("\n"))
   exit 1
 end
