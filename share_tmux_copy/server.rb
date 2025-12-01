@@ -4,6 +4,8 @@
 require 'json'
 require 'sinatra'
 
+ENV['DISPLAY'] = ':0' unless ENV['DISPLAY']
+
 post '/' do
   # リクエストボディを取得して標準出力に出力
   data = JSON.parse(request.body.read, symbolize_names: true)
@@ -30,7 +32,9 @@ end
 
 get '/test' do
   p params
+  p ENV['DISPLAY']
 end
+
 
 # サーバーを起動するための設定
 set :port, (ARGV[0] || 8001).to_i
