@@ -4,7 +4,7 @@ Description=tmux clipboard sharer
 
 [Service]
 Type=simple
-ExecStart=bash #{ENV['PWD']}/share_tmux_copy/launch.sh
+ExecStart=bash #{ENV['PWD']}/launch.sh
 
 [Install]
 WantedBy=default.target
