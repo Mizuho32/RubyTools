@@ -5,6 +5,7 @@ require 'yaml'
 require 'pathname'
 require 'open3'
 require 'time'
+require 'stringio'
 
 require_relative 'lib'
 require_relative '../youtube-list/lib'
