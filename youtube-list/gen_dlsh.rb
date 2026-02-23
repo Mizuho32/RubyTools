@@ -136,7 +136,7 @@ result = newly_downloads.each_with_index.map{|(id, idx), i|
                 else %Q|--download-sections "*#{duration}"| end
     
     out_path = (target_dir / "#{idx.succ} - %(title)s#{durat_txt} %(id)s.%(ext)s").to_s
-    cmd = %Q|yt-dlp -o "#{out_path}" #{durat_opt} "#{url}"|
+    cmd = %Q|yt-dlp --remote-components ejs:github -o "#{out_path}" #{durat_opt} "#{url}"|
 
     name = yaml_map[id][:name]
     out, err, status = Open3.capture3(cmd)
