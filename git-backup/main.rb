@@ -45,6 +45,7 @@ _At #{Time.now.iso8601}_
 
 #{git_out}
 
+http://localhost:8002/git/#{git_dir.relative_path_from(Pathname(ENV['HOME']))}
 Ok to add & commit? >> """)
 
 # puts $strio.string if $strio.is_a?(StringIO)
