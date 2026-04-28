@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+trap(:INT){
+  warn 'canceled'
+  exit 1
+}
+
+script_path = File.realpath(__FILE__)
+project_root = File.expand_path("..", File.dirname(script_path))
+
+require File.join(project_root, "src", "wol_ui", "cli")
+
+config_path = ARGV[0] || File.join(project_root, "config.yaml")
+exit WolUi::CLI.run(config_path)
