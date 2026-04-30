@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 
-cd -- "$( dirname -- "${BASH_SOURCE[0]}" )"/../
+SCR=$( readlink "${BASH_SOURCE[0]}" || echo "${BASH_SOURCE[0]}" )
+cd -- "$( dirname -- "${SCR}" )"/../
 bundle exec ruby bin/key.rb "$@"
