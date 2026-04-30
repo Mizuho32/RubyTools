@@ -3,6 +3,7 @@
 require "curses"
 require "unicode/display_width"
 require_relative "client"
+require_relative "input_decoder"
 
 module WiFiKeyboard
   class TUI
@@ -19,6 +20,9 @@ module WiFiKeyboard
       arrow_up: 38,
       arrow_right: 39,
       arrow_down: 40,
+      shift_left: 59,
+      alt_left: 57,
+      ctrl_left: 113,
       dpad_center: 23,
       menu: 82,
       search: 84,
@@ -37,6 +41,7 @@ module WiFiKeyboard
       @ignore_printable_until = Time.at(0)
       @debug_enabled = ENV["WIFIKEYBOARD_DEBUG"] == "1"
       @mb_buf = "".b  # accumulator for multibyte UTF-8 sequences (ASCII-8BIT)
+      @input_decoder = InputDecoder.new(debug_logger: method(:debug_log))
     end
 
     def run
@@ -58,6 +63,8 @@ module WiFiKeyboard
       Curses.init_pair(4, Curses::COLOR_WHITE, Curses::COLOR_BLUE)
       Curses.init_pair(5, Curses::COLOR_WHITE, Curses::COLOR_BLACK)
 
+      enable_enhanced_keyboard_input
+
       @status = @client.ping
 
       loop do
@@ -66,6 +73,7 @@ module WiFiKeyboard
         break if handle_key(raw) == :quit
       end
     ensure
+      disable_enhanced_keyboard_input
       @client.close if @client.respond_to?(:close)
       Curses.close_screen
     end
@@ -125,17 +133,15 @@ module WiFiKeyboard
     end
 
     def key_code(ch)
-      ch.is_a?(String) ? ch.ord : ch
+      @input_decoder.key_code(ch)
     end
 
     def handle_key(raw)
       code = key_code(raw)
       debug_log("tui.getch mode=#{@mode} raw_class=#{raw.class} raw=#{raw.inspect} normalized=#{code.inspect}")
-      if @mode == :submit
-        handle_submit_mode(raw, code)
-      else
-        handle_direct_mode(code)
-      end
+      return handle_submit_mode(raw, code) if @mode == :submit
+
+      handle_direct_mode(raw, code)
     end
 
     def handle_submit_mode(raw, code)
@@ -187,14 +193,20 @@ module WiFiKeyboard
       nil
     end
 
-    def handle_direct_mode(code)
+    def handle_direct_mode(raw, code)
       case code
       when KEY_CTRL_C
         return :quit
       when Curses::KEY_F4
         @mode = :submit
       when KEY_ESC
-        consume_escape_sequence
+        event = @input_decoder.read_escape_event(raw, Curses.stdscr)
+        if event
+          handle_direct_enhanced_event(event)
+        else
+          consumed_any = @input_decoder.consume_escape_sequence(Curses.stdscr)
+          @ignore_printable_until = Time.now + 0.2 if consumed_any
+        end
       when KEY_CR, KEY_CTRL_J, Curses::KEY_ENTER
         send_keycode_safe(ANDROID[:enter])
       when Curses::KEY_LEFT
@@ -310,6 +322,20 @@ module WiFiKeyboard
       @status = :failure
     end
 
+    def send_key_action_safe(code, action)
+      packet = case action
+               when :down then "D#{code},"
+               when :up then "U#{code},"
+               when :repeat then "D#{code},"
+               else return
+               end
+      debug_log("tui.send_key_action code=#{code} action=#{action}")
+      ok = @client.send_key(packet)
+      @status = :connected if ok
+    rescue WiFiKeyboard::ConnectionError
+      @status = :failure
+    end
+
     def send_char_safe(code)
       debug_log("tui.send_char code=#{code} char=#{code.chr(Encoding::UTF_8).inspect rescue '<?>'}")
       ok = @client.send_key("C#{code},")
@@ -318,34 +344,74 @@ module WiFiKeyboard
       @status = :failure
     end
 
-    def consume_escape_sequence
-      stdscr = Curses.stdscr
-      prev = stdscr.nodelay?
-      consumed_any = false
-      idle_polls = 0
-      consumed = []
+    def handle_direct_enhanced_event(event)
+      key = event[:key]
+      action = event[:action] || :down
+      mods = event[:mods] || {}
 
-      stdscr.nodelay = true
-      while idle_polls < 20
-        nxt = stdscr.getch
-        if nxt.nil?
-          idle_polls += 1
-          Curses.napms(5)
-          next
-        end
-
-        idle_polls = 0
-        consumed_any = true
-        code = key_code(nxt)
-        consumed << code
-        break if code.is_a?(Integer) && code >= 0x40 && code <= 0x7e
+      case key
+      when :arrow_up
+        send_key_action_with_mods(ANDROID[:arrow_up], action, mods)
+      when :arrow_down
+        send_key_action_with_mods(ANDROID[:arrow_down], action, mods)
+      when :arrow_left
+        send_key_action_with_mods(ANDROID[:arrow_left], action, mods)
+      when :arrow_right
+        send_key_action_with_mods(ANDROID[:arrow_right], action, mods)
+      when :shift
+        send_key_action_safe(ANDROID[:shift_left], action)
+      when :alt
+        send_key_action_safe(ANDROID[:alt_left], action)
+      when :ctrl
+        send_key_action_safe(ANDROID[:ctrl_left], action)
+      else
+        nil
       end
+    end
 
-      debug_log("tui.consume_escape consumed_any=#{consumed_any} bytes=#{consumed.inspect}")
-      @ignore_printable_until = Time.now + 0.2 if consumed_any
-      consumed_any
-    ensure
-      stdscr.nodelay = prev
+    def send_key_action_with_mods(keycode, action, mods)
+      mod_codes = []
+      mod_codes << ANDROID[:shift_left] if mods[:shift]
+      mod_codes << ANDROID[:alt_left] if mods[:alt]
+      mod_codes << ANDROID[:ctrl_left] if mods[:ctrl]
+
+      if action == :up
+        send_key_action_safe(keycode, :up)
+        mod_codes.reverse_each { |code| send_key_action_safe(code, :up) }
+      else
+        mod_codes.each { |code| send_key_action_safe(code, :down) }
+        if action == :repeat
+          send_key_action_safe(keycode, :down)
+        else
+          send_key_action_safe(keycode, :down)
+          send_key_action_safe(keycode, :up)
+        end
+        mod_codes.reverse_each { |code| send_key_action_safe(code, :up) }
+      end
+    end
+
+    def enable_enhanced_keyboard_input
+      return unless $stdout.tty?
+
+      # Push keyboard mode stack and enable:
+      # - disambiguate escape codes (0b1)
+      # - report event types (0b10)
+      # - report all keys as escape codes (0b1000)
+      # flags = 11
+      $stdout.write("\e[>1u\e[=11;1u")
+      $stdout.flush
+    rescue StandardError => e
+      debug_log("tui.enable_enhanced_input error=#{e.class}: #{e.message}")
+    end
+
+    def disable_enhanced_keyboard_input
+      return unless $stdout.tty?
+
+      # Pop keyboard mode stack once.
+      $stdout.write("\e[<u")
+      $stdout.flush
+    rescue StandardError => e
+      debug_log("tui.disable_enhanced_input error=#{e.class}: #{e.message}")
     end
 
     def debug_log(msg)
