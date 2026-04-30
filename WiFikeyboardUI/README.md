@@ -6,6 +6,9 @@ https://raw.githubusercontent.com/IvanVolosyuk/wifikeyboard/refs/heads/master/ht
 ## Overview
 Ruby/curses TUI client that connects to the WiFiKeyboard HTTP server running on Android.
 
+Submit mode uses UTF-8 end-to-end (input buffer + POST body).
+TUI rendering uses `unicode-display_width` for multibyte-aware width handling.
+
 **Default mode is Submit** — type locally, then send the whole text at once.
 Press F4 to toggle into Direct mode where every keystroke is sent immediately.
 
@@ -44,8 +47,10 @@ ruby bin/key.rb 192.168.0.10:7777
 ### Direct Mode (F4 to toggle)
 | Key | Action |
 |---|---|
-| Printable chars | Send char code via /key immediately |
+| Printable chars | Send browser keyCode via /key immediately (ASCII-centric) |
 | `Enter` | Send keycode 13 via /key |
+| `Backspace` | Send keycode 8 (D8/U8) |
+| `Delete` | Send keycode 46 (D46/U46) |
 | `←` `→` `↑` `↓` | Send DPAD arrow keycodes (37–40) |
 | `F1` | DPAD Center (keycode 23) |
 | `F2` | Menu (keycode 82) |

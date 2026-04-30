@@ -1,64 +1,69 @@
 # frozen_string_literal: true
 
 require "curses"
+require "unicode/display_width"
 require_relative "client"
 
 module WiFiKeyboard
   class TUI
-    # Special key codes from curses
-    KEY_CTRL_C        = 3
-    KEY_CTRL_J        = 10   # Ctrl+J / LF
-    KEY_CTRL_L        = 12
-    KEY_CTRL_S        = 19   # Submit fallback (reliable across terminals)
-    KEY_CR            = 13   # plain Enter (CR)
-    KEY_ESC           = 27
+    KEY_CTRL_C = 3
+    KEY_CTRL_J = 10
+    KEY_CTRL_L = 12
+    KEY_CTRL_S = 19
+    KEY_CR = 13
+    KEY_ESC = 27
 
-    # Android key codes (WiFiKeyboard protocol)
     ANDROID = {
-      enter:        13,
-      arrow_left:   37,
-      arrow_up:     38,
-      arrow_right:  39,
-      arrow_down:   40,
-      dpad_center:  23,
-      menu:         82,
-      search:       84,
-      back:          4,
-      volume_down:  25,
-      volume_up:    24,
+      enter: 13,
+      arrow_left: 37,
+      arrow_up: 38,
+      arrow_right: 39,
+      arrow_down: 40,
+      dpad_center: 23,
+      menu: 82,
+      search: 84,
+      back: 4,
+      volume_down: 25,
+      volume_up: 24,
     }.freeze
 
     def initialize(client)
-      @client  = client
-      @mode    = :submit   # :submit | :direct
-      @status  = :connecting
-      @lines   = [+""]    # buffer: array of strings (each line)
-      @row     = 0        # cursor row in @lines
-      @col     = 0        # cursor col in current line
+      @client = client
+      @mode = :submit
+      @status = :connecting
+      @lines = [+""]
+      @row = 0
+      @col = 0
       @ignore_printable_until = Time.at(0)
+      @debug_enabled = ENV["WIFIKEYBOARD_DEBUG"] == "1"
+      @mb_buf = "".b  # accumulator for multibyte UTF-8 sequences (ASCII-8BIT)
     end
 
     def run
+      begin
+        Curses.setlocale(Curses::LC_ALL, "")
+      rescue StandardError
+      end
+
       Curses.init_screen
       Curses.start_color
       Curses.noecho
       Curses.cbreak
       Curses.stdscr.keypad(true)
       Curses.stdscr.nodelay = false
-      Curses.init_pair(1, Curses::COLOR_BLACK, Curses::COLOR_GREEN)  # connected
-      Curses.init_pair(2, Curses::COLOR_BLACK, Curses::COLOR_RED)    # failure
-      Curses.init_pair(3, Curses::COLOR_BLACK, Curses::COLOR_YELLOW) # connecting
-      Curses.init_pair(4, Curses::COLOR_WHITE, Curses::COLOR_BLUE)   # status bar
-      Curses.init_pair(5, Curses::COLOR_WHITE, Curses::COLOR_BLACK)  # help bar
 
-      # One-shot connectivity check at startup. Avoid periodic network traffic
-      # so user key sends are never interleaved with background requests.
+      Curses.init_pair(1, Curses::COLOR_BLACK, Curses::COLOR_GREEN)
+      Curses.init_pair(2, Curses::COLOR_BLACK, Curses::COLOR_RED)
+      Curses.init_pair(3, Curses::COLOR_BLACK, Curses::COLOR_YELLOW)
+      Curses.init_pair(4, Curses::COLOR_WHITE, Curses::COLOR_BLUE)
+      Curses.init_pair(5, Curses::COLOR_WHITE, Curses::COLOR_BLACK)
+
       @status = @client.ping
 
       loop do
         draw
-        ch = Curses.stdscr.getch
-        break if handle_key(ch) == :quit
+        raw = Curses.stdscr.getch
+        break if handle_key(raw) == :quit
       end
     ensure
       @client.close if @client.respond_to?(:close)
@@ -66,8 +71,6 @@ module WiFiKeyboard
     end
 
     private
-
-    # ── Drawing ────────────────────────────────────────────────────────────────
 
     def draw
       rows = Curses.lines
@@ -77,27 +80,22 @@ module WiFiKeyboard
       draw_input_area(rows, cols)
       draw_help_bar(rows, cols)
 
-      # Position cursor
       text_rows = rows - 2
       visible_row = [@row, text_rows - 1].min
-      Curses.stdscr.setpos(1 + visible_row, @col)
+      cursor_col = visual_col_for_index(current_line, @col).clamp(0, [cols - 1, 0].max)
+      Curses.stdscr.setpos(1 + visible_row, cursor_col)
       Curses.stdscr.refresh
     end
 
     def draw_status_bar(cols)
       mode_label = @mode == :submit ? "Submit" : "Direct"
       status_str = case @status
-                   when :connected   then "Connected"
-                   when :failure     then "No connection"
-                   when :problem     then "Not typing"
-                   when :multi       then "Multiple input"
-                   else                   "Connecting..."
+                   when :connected then "Connected"
+                   when :failure then "No connection"
+                   when :problem then "Not typing"
+                   when :multi then "Multiple input"
+                   else "Connecting..."
                    end
-      pair = case @status
-             when :connected then 1
-             when :failure   then 2
-             else                 3
-             end
       bar = "[#{status_str}] #{@client.host}:#{@client.port}  [#{mode_label} mode]"
       bar = bar.ljust(cols)[0, cols]
       Curses.stdscr.setpos(0, 0)
@@ -106,67 +104,59 @@ module WiFiKeyboard
 
     def draw_input_area(rows, cols)
       text_rows = rows - 2
-      # Determine scroll offset so cursor is visible
       scroll = [@row - text_rows + 1, 0].max
       (0...text_rows).each do |r|
         Curses.stdscr.setpos(1 + r, 0)
         line_idx = scroll + r
-        text = line_idx < @lines.size ? @lines[line_idx][0, cols].ljust(cols) : " " * cols
+        text = line_idx < @lines.size ? render_for_width(@lines[line_idx], cols) : (" " * cols)
         Curses.stdscr.addstr(text)
       end
     end
 
     def draw_help_bar(rows, cols)
       help = if @mode == :submit
-               " ^Enter:Submit  Enter:↵  F4:Direct  ^L:Clear  ^C:Quit "
+               " ^S:Submit  Enter:↵  F4:Direct  ^L:Clear  ^C:Quit "
              else
-               " F4:Submit  Esc/F5:Back  F1:Center  F2:Menu  F9/F10:Vol  ^C:Quit "
+               " F4:Submit  F5:Back  F1:Center  F2:Menu  F9/F10:Vol  ^C:Quit "
              end
       help = help.ljust(cols)[0, cols]
       Curses.stdscr.setpos(rows - 1, 0)
       Curses.stdscr.attron(Curses.color_pair(5)) { Curses.stdscr.addstr(help) }
     end
 
-    # ── Key handling ────────────────────────────────────────────────────────────
-
-    # getch returns String for regular/control chars, Integer for special keys.
-    # Normalize everything to Integer so all `when` branches work uniformly.
-    def normalize_key(ch)
+    def key_code(ch)
       ch.is_a?(String) ? ch.ord : ch
     end
 
-    def handle_key(ch)
-      k = normalize_key(ch)
-      debug_log("tui.getch mode=#{@mode} raw_class=#{ch.class} raw=#{ch.inspect} normalized=#{k.inspect}")
+    def handle_key(raw)
+      code = key_code(raw)
+      debug_log("tui.getch mode=#{@mode} raw_class=#{raw.class} raw=#{raw.inspect} normalized=#{code.inspect}")
       if @mode == :submit
-        handle_submit_mode(k)
+        handle_submit_mode(raw, code)
       else
-        handle_direct_mode(k)
+        handle_direct_mode(code)
       end
     end
 
-    def handle_submit_mode(ch)
-      case ch
+    def handle_submit_mode(raw, code)
+      # code >= 128 && < 256: raw byte of a multibyte UTF-8 sequence.
+      # Anything else (special key constants, control chars) flushes the accumulator.
+      unless code.is_a?(Integer) && code >= 128 && code < 256
+        @mb_buf.clear
+      end
+
+      case code
       when KEY_CTRL_C
         return :quit
-
-        when KEY_CTRL_S,      # Ctrl+S — submit on all terminals
-             Curses::KEY_ENTER # numpad Enter
+      when KEY_CTRL_S, Curses::KEY_ENTER
         do_submit
-
       when KEY_CTRL_L
-
-          # Avoid losing payload while a previous submit is still in flight.
-          if @submit_thread&.alive?
-            @status = :connecting
-            return
-          end
         @lines = [+""]
         @row = 0
         @col = 0
-
       when Curses::KEY_F4
         @mode = :direct
+      when Curses::KEY_LEFT
         move_cursor(-1, 0)
       when Curses::KEY_RIGHT
         move_cursor(1, 0)
@@ -174,39 +164,39 @@ module WiFiKeyboard
         move_cursor(0, -1)
       when Curses::KEY_DOWN
         move_cursor(0, 1)
-
       when Curses::KEY_BACKSPACE, 127, 8
         delete_char_before
-
       when Curses::KEY_DC
         delete_char_after
-
-      when KEY_CR, KEY_CTRL_J  # Enter / LF — insert newline locally
+      when KEY_CR, KEY_CTRL_J
         insert_newline
-
-      else
-        insert_char(ch) if ch >= 32 && ch < 256
+      when 32..127
+        # Plain printable ASCII — raw may be String or Integer
+        insert_text(raw.is_a?(String) ? raw : raw.chr(Encoding::UTF_8))
+      when 128..255
+        # Raw byte of a multibyte UTF-8 sequence (getch returns Integer on Linux)
+        @mb_buf << code
+        attempt = @mb_buf.dup.force_encoding(Encoding::UTF_8)
+        if attempt.valid_encoding?
+          debug_log("tui.mb_insert buf=#{@mb_buf.bytes.inspect} char=#{attempt.inspect}")
+          insert_text(attempt)
+          @mb_buf.clear
+        end
+        # else: incomplete sequence, keep accumulating
       end
       nil
     end
 
-    def handle_direct_mode(ch)
-      case ch
+    def handle_direct_mode(code)
+      case code
       when KEY_CTRL_C
         return :quit
-
       when Curses::KEY_F4
         @mode = :submit
-
       when KEY_ESC
-        # Some terminals emit control replies like ESC [ ... c.
-        # Always consume/drop ESC sequences in Direct mode to avoid
-        # trailing bytes (often 'c') being mistaken as user input.
         consume_escape_sequence
-
       when KEY_CR, KEY_CTRL_J, Curses::KEY_ENTER
         send_keycode_safe(ANDROID[:enter])
-
       when Curses::KEY_LEFT
         send_keycode_safe(ANDROID[:arrow_left])
       when Curses::KEY_RIGHT
@@ -215,7 +205,6 @@ module WiFiKeyboard
         send_keycode_safe(ANDROID[:arrow_up])
       when Curses::KEY_DOWN
         send_keycode_safe(ANDROID[:arrow_down])
-
       when Curses::KEY_F1
         send_keycode_safe(ANDROID[:dpad_center])
       when Curses::KEY_F2
@@ -228,35 +217,41 @@ module WiFiKeyboard
         send_keycode_safe(ANDROID[:volume_down])
       when Curses::KEY_F10
         send_keycode_safe(ANDROID[:volume_up])
-
       when Curses::KEY_BACKSPACE, 127, 8
-        send_keycode_safe(67)  # Android KEYCODE_DEL
-
+        send_keycode_safe(8)
       when Curses::KEY_DC
-        send_keycode_safe(67)  # Treat Delete as DEL too
-
+        send_keycode_safe(46)
       else
-        if ch >= 32 && ch < 256
+        if code >= 32 && code < 256
           if Time.now < @ignore_printable_until
-            debug_log("tui.drop_printable_guard code=#{ch}")
+            debug_log("tui.drop_printable_guard code=#{code}")
           else
-            send_char_safe(ch)
+            send_char_safe(code)
           end
         end
       end
       nil
     end
 
-    # ── Buffer helpers ──────────────────────────────────────────────────────────
-
     def current_line
       @lines[@row] ||= +""
     end
 
-    def insert_char(code)
-      c = code.chr(Encoding::UTF_8) rescue return
-      @lines[@row].insert(@col, c)
-      @col += 1
+    def insert_text(text)
+      s = text.to_s
+      return if s.empty?
+
+      # curses may return strings tagged as ASCII-8BIT whose bytes are already
+      # valid UTF-8.  Transcoding via encode() would misinterpret them as
+      # Latin-1 and corrupt multibyte characters (e.g. Japanese).
+      # Reinterpret raw bytes as UTF-8 instead.
+      unless s.encoding == Encoding::UTF_8
+        s = s.dup.force_encoding(Encoding::UTF_8)
+      end
+      return unless s.valid_encoding?
+
+      @lines[@row].insert(@col, s)
+      @col += s.length
     end
 
     def insert_newline
@@ -287,18 +282,15 @@ module WiFiKeyboard
     end
 
     def move_cursor(dcol, drow)
-      new_row = (@row + drow).clamp(0, @lines.size - 1)
-      @row = new_row
+      @row = (@row + drow).clamp(0, @lines.size - 1)
       @col = @col.clamp(0, current_line.length)
-      new_col = (@col + dcol).clamp(0, current_line.length)
-      @col = new_col
+      @col = (@col + dcol).clamp(0, current_line.length)
     end
-
-    # ── Actions ─────────────────────────────────────────────────────────────────
 
     def do_submit
       text = @lines.join("\n")
       return if text.empty?
+
       ok = @client.submit(text)
       if ok
         @status = :connected
@@ -334,7 +326,6 @@ module WiFiKeyboard
       consumed = []
 
       stdscr.nodelay = true
-      # Wait briefly for delayed bytes; terminal replies may arrive a bit later.
       while idle_polls < 20
         nxt = stdscr.getch
         if nxt.nil?
@@ -342,25 +333,24 @@ module WiFiKeyboard
           Curses.napms(5)
           next
         end
-        idle_polls = 0
 
+        idle_polls = 0
         consumed_any = true
-        code = normalize_key(nxt)
+        code = key_code(nxt)
         consumed << code
-        # ANSI control sequence final byte range.
         break if code.is_a?(Integer) && code >= 0x40 && code <= 0x7e
       end
 
       debug_log("tui.consume_escape consumed_any=#{consumed_any} bytes=#{consumed.inspect}")
-      # Some terminals flush trailing printable bytes slightly later.
       @ignore_printable_until = Time.now + 0.2 if consumed_any
-
       consumed_any
     ensure
       stdscr.nodelay = prev
     end
 
     def debug_log(msg)
+      return unless @debug_enabled
+
       line = "#{Time.now.strftime('%Y-%m-%d %H:%M:%S.%L')} [TUI] #{msg}\n"
       File.open(ENV.fetch("WIFIKEYBOARD_DEBUG_LOG", "/tmp/wifikeyboard_debug.log"), "a") { |f| f.write(line) }
       $stderr.write(line) if ENV["WIFIKEYBOARD_DEBUG_STDERR"] == "1"
@@ -368,5 +358,37 @@ module WiFiKeyboard
       nil
     end
 
+    def printable_text?(s)
+      return false unless s.valid_encoding?
+      return false if s.empty?
+
+      !s.match?(/\p{Cntrl}/)
+    end
+
+    def render_for_width(text, cols)
+      out = +""
+      width = 0
+
+      text.each_char do |ch|
+        w = [Unicode::DisplayWidth.of(ch, ambiguous: 1), 1].max
+        break if width + w > cols
+
+        out << ch
+        width += w
+      end
+
+      out << (" " * [cols - width, 0].max)
+      out
+    end
+
+    def visual_col_for_index(text, index)
+      col = 0
+      text.each_char.with_index do |ch, i|
+        break if i >= index
+
+        col += [Unicode::DisplayWidth.of(ch, ambiguous: 1), 1].max
+      end
+      col
+    end
   end
 end

@@ -25,7 +25,10 @@ module WiFiKeyboard
     # Send full text to Android via POST /form
     def submit(text)
       req  = Net::HTTP::Post.new("/form")
-      body = text.to_s
+      raw  = text.to_s
+      # Reinterpret bytes as UTF-8 (curses may tag strings as ASCII-8BIT)
+      raw  = raw.dup.force_encoding(Encoding::UTF_8) unless raw.encoding == Encoding::UTF_8
+      body = raw.encode(Encoding::UTF_8)
       # Match original key.html behavior: raw body, no `text=` wrapper.
       req["Content-Type"] = "application/x-www-form-urlencoded"
       req["Content-Length"] = body.bytesize.to_s
