@@ -29,7 +29,7 @@ module WolUi
       }
       0
     rescue StandardError => e
-      warn "error: #{e.message}\n#{e.backtrace.join("\n")}"
+      warn "error: #{e.message}\n#{e.backtrace.reject{ _1.include?("bundle") }.join("\n")}"
       1
     end
 
@@ -48,18 +48,16 @@ module WolUi
       #return machines[number - 1] unless number.nil?
 
       exact = machines.find { |machine| machine.name.casecmp?(input) }
-      return exact unless exact.nil?
+      return [exact].each_with_index unless exact.nil?
 
       matches = machines.each_with_index.select { |machine, idx| input.downcase.split(/[^a-z0-9]/).any?{ machine.name.downcase.include?(_1) || idx+1 == Integer(_1, exception: false) } }
-      if matches.length == 1
-        matches
-      elsif matches.empty?
+      if matches.empty?
         warn "\nno machine matched: #{input}"
-        nil
-      else
+        return nil
+      elsif matches.length > 1
         warn "\nmultiple machines matched!"#: #{matches.map(&:name).join(", ")}"
-        matches
       end
+      return matches
     end
   end
 end
