@@ -5,6 +5,8 @@ require 'json'
 require 'sinatra'
 require 'pathname'
 
+require 'dbus'
+
 ENV['DISPLAY'] = ':0' unless ENV['DISPLAY']
 copy_cmd = if system("which xsel") then
             "xsel -i --clipboard"
@@ -45,3 +47,43 @@ end
 # サーバーを起動するための設定
 set :port, (ARGV[0] || 8001).to_i
 set :bind, "0.0.0.0"
+
+
+# Dbus server
+class Test < DBus::Object
+  dbus_interface "org.homectrl.Kwin" do
+    dbus_method :notify, "in msg:s" do |msg|
+      puts msg
+      # like: {"minimizedChanged":"音量調節","minimized":false}
+      data = JSON.parse(msg, symbolize_names: true)
+
+      if data[:minimizedChanged].match(/Vivaldi$/) then
+        if data[:minimized] then
+          system('killall -SIGSTOP vivaldi')
+        else
+          system('killall -SIGCONT vivaldi')
+        end
+      end
+    end
+  end
+
+  def initialize(path)
+    super(path)
+  end
+end
+
+Thread.new do
+  bus = DBus::SessionBus.instance
+  service = bus.request_service("org.homectrl.Kwin")
+
+  obj = Test.new("/Kwin")
+  service.export(obj)
+
+  main = DBus::Main.new
+  main << bus
+  main.run
+rescue StandardError => ex
+  warn(ex.message, ex.backtrace.join("\n"))
+end
+
+puts "#{__FILE__} All init done."
