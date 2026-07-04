@@ -6,6 +6,9 @@ source "https://rubygems.org"
 #
 group :server do
   gem "sinatra"
+  gem "puma"
   gem "json"
   gem "rackup", "~> 2.1"
+
+  gem 'ruby-dbus'
 end
