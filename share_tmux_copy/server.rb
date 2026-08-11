@@ -7,13 +7,16 @@ require 'pathname'
 
 require 'dbus'
 
+puts "WAY is #{ENV['WAYLAND_DISPLAY']}"
 ENV['DISPLAY'] = ':0' unless ENV['DISPLAY']
 copy_cmd = if system("which xsel") then
             "xsel -i --clipboard"
            elsif system("which wl-copy") then
              "wl-copy"
            else
-             exit 2
+             warn "None of copy command exists (xsel, wl-copy)"
+             #exit 2
+             ''
            end
 
 post '/' do
@@ -23,6 +26,8 @@ post '/' do
 	input_data = data[:data]
 
   if input_data then
+    next "No copy cmd" if copy_cmd.empty?
+
     # copy to clipboard
     IO.popen(copy_cmd, "r+") do |io|
       io.print input_data
