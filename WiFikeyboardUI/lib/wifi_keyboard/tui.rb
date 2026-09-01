@@ -7,10 +7,20 @@ require_relative "input_decoder"
 
 module WiFiKeyboard
   class TUI
+    KEY_CTRL_A = 1
+    KEY_CTRL_B = 2
     KEY_CTRL_C = 3
+    KEY_CTRL_D = 4
+    KEY_CTRL_E = 5
+    KEY_CTRL_F = 6
     KEY_CTRL_J = 10
+    KEY_CTRL_K = 11
     KEY_CTRL_L = 12
+    KEY_CTRL_N = 14
+    KEY_CTRL_P = 16
     KEY_CTRL_S = 19
+    KEY_CTRL_U = 21
+    KEY_CTRL_W = 23
     KEY_CR = 13
     KEY_ESC = 27
 
@@ -162,20 +172,40 @@ module WiFiKeyboard
         @col = 0
       when Curses::KEY_F4
         @mode = :direct
-      when Curses::KEY_LEFT
+      when Curses::KEY_LEFT, KEY_CTRL_B
         move_cursor(-1, 0)
-      when Curses::KEY_RIGHT
+      when Curses::KEY_RIGHT, KEY_CTRL_F
         move_cursor(1, 0)
-      when Curses::KEY_UP
+      when Curses::KEY_UP, KEY_CTRL_P
         move_cursor(0, -1)
-      when Curses::KEY_DOWN
+      when Curses::KEY_DOWN, KEY_CTRL_N
         move_cursor(0, 1)
+      when KEY_CTRL_A
+        @col = 0
+      when KEY_CTRL_E
+        @col = current_line.length
+      when KEY_CTRL_K
+        delete_to_end_of_line
+      when KEY_CTRL_U
+        delete_to_start_of_line
+      when KEY_CTRL_W
+        delete_word_before
+      when KEY_ESC
+        handle_submit_escape
       when Curses::KEY_BACKSPACE, 127, 8
-        delete_char_before
-      when Curses::KEY_DC
+        if buffer_empty?
+          send_keycode_safe(8)
+        else
+          delete_char_before
+        end
+      when Curses::KEY_DC, KEY_CTRL_D
         delete_char_after
       when KEY_CR, KEY_CTRL_J
-        insert_newline
+        if buffer_empty?
+          send_keycode_safe(ANDROID[:enter])
+        else
+          insert_newline
+        end
       when 32..127
         # Plain printable ASCII — raw may be String or Integer
         insert_text(raw.is_a?(String) ? raw : raw.chr(Encoding::UTF_8))
@@ -291,6 +321,60 @@ module WiFiKeyboard
       elsif @row < @lines.size - 1
         @lines[@row] += @lines.delete_at(@row + 1)
       end
+    end
+
+    def delete_to_end_of_line
+      current_line.slice!(@col..)
+    end
+
+    def delete_to_start_of_line
+      current_line.slice!(0...@col)
+      @col = 0
+    end
+
+    def delete_word_before
+      return if @col == 0
+
+      i = word_start_before(current_line, @col)
+      current_line.slice!(i...@col)
+      @col = i
+    end
+
+    def handle_submit_escape
+      alt_code = @input_decoder.read_alt_key(Curses.stdscr)
+      case alt_code
+      when 102, 70 # f / F
+        move_word_forward
+      when 98, 66 # b / B
+        move_word_backward
+      end
+    end
+
+    def move_word_forward
+      @col = word_end_after(current_line, @col)
+    end
+
+    def move_word_backward
+      @col = word_start_before(current_line, @col)
+    end
+
+    def word_start_before(line, col)
+      i = col
+      i -= 1 while i > 0 && line[i - 1] =~ /\s/
+      i -= 1 while i > 0 && line[i - 1] !~ /\s/
+      i
+    end
+
+    def word_end_after(line, col)
+      len = line.length
+      i = col
+      i += 1 while i < len && line[i] =~ /\s/
+      i += 1 while i < len && line[i] !~ /\s/
+      i
+    end
+
+    def buffer_empty?
+      @lines.size == 1 && @lines[0].empty?
     end
 
     def move_cursor(dcol, drow)

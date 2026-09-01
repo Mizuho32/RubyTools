@@ -26,6 +26,18 @@ module WiFiKeyboard
       !consumed.empty?
     end
 
+    # Returns the byte immediately following ESC when it looks like a plain
+    # Alt+key press (a single byte, not the start of a CSI '[' sequence).
+    # Returns nil otherwise (bare ESC, or an unrecognized escape sequence).
+    def read_alt_key(stdscr)
+      bytes = read_escape_tail_bytes(stdscr)
+      debug("decoder.alt_key payload=#{bytes.inspect}")
+      return nil if bytes.empty? || bytes.length > 1
+      return nil if bytes.first == 91 # '[' => CSI, not a plain Alt+key
+
+      bytes.first
+    end
+
     private
 
     def debug(msg)
