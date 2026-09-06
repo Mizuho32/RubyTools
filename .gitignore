@@ -1,6 +1,7 @@
 backup.sh
 env*.sh
 .Trash-*/
+*.toml
 
 ## Specific to RubyMotion (use of CocoaPods):
 #
