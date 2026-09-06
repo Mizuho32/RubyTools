@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>homectrl portal</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    table { border-collapse: collapse; }
+    td, th { border: 1px solid #ccc; padding: 0.4em 0.8em; text-align: left; }
+    form { display: inline; margin: 0; }
+    .status-active { color: green; }
+    .status-inactive, .status-failed { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Local services</h1>
+  <table>
+    <tr><th>name</th><th>description</th><th>status</th><th>open</th><th>actions</th></tr>
+    <% services.each_value do |svc| %>
+      <tr>
+        <td><%= svc.name %></td>
+        <td><%= svc.description %></td>
+        <td class="status-<%= unit_status(svc.unit) %>"><%= unit_status(svc.unit) %></td>
+        <td><% if svc.url %><a href="<%= svc.url %>" target="_blank">open</a><% end %></td>
+        <td>
+          <form method="post" action="/portal/services/<%= svc.name %>/start"><button>start</button></form>
+          <form method="post" action="/portal/services/<%= svc.name %>/stop"><button>stop</button></form>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</body>
+</html>

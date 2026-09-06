@@ -1,6 +1,10 @@
 #
 #/usr/bin/env ruby
 
+# DEPRECATED: replaced by app.rb + plugins/{tmux_copy,vivaldi_suspend}/plugin.rb.
+# Kept only as a quick rollback reference (launch.sh no longer runs this file);
+# safe to delete once app.rb has run in production for a while.
+
 require 'json'
 require 'sinatra'
 require 'pathname'

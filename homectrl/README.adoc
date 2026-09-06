@@ -1,8 +1,110 @@
-# Send tmux copy to remote
+# homectrl
 
-Launch server first.
-tmux.conf is like:
+Small local convenience server. Started life as "share tmux copy to remote",
+now a plugin-based hub: each feature lives under `plugins/<name>/plugin.rb`
+and is enabled/disabled from `config.yaml`. No plugin/registry magic beyond
+"require the files listed in config.yaml".
+
+## Run
+
+```
+bundle exec ruby app.rb            # port from config.yaml (default 8001)
+bundle exec ruby app.rb 8002       # override the main port for a local test run
+```
+
+In production this is run via systemd (`--user`), see `homectrl.service.rb`
+(a small Ruby script that writes `~/.config/systemd/user/homectrl.service`
+from a heredoc — re-run it and `systemctl --user daemon-reload` after moving
+this directory).
+
+```
+systemctl --user status homectrl.service
+journalctl --user -fu homectrl.service
+```
+
+## config.yaml
+
+Not tracked in git (see `.gitignore`, same as `WOL_UI/config.yaml`) —
+copy/create one per machine:
+
+```yaml
+bind: "0.0.0.0"        # main app bind (LAN-wide: tmux client.rb connects from other hosts)
+port: 8001
+
+portal:
+  bind: "127.0.0.1"     # portal bind — kept loopback-only on purpose, see below
+  port: 8080
+
+plugins:                # enabled plugins, in load order
+  - tmux_copy
+  - process_suspend
+  - portal
+```
+
+`main` and `portal` are two separate Puma listeners on two separate
+threads/ports (see `app.rb`) — a plugin never ends up reachable from the
+"wrong" bind just because it happens to load after another one.
+
+## Plugins
+
+### tmux_copy (`plugins/tmux_copy/plugin.rb`)
+
+Bridges tmux copy-mode selections into the local clipboard (`xsel`/`wl-copy`).
+`POST /` with `{"data": "..."}`, `GET /test` for a debug/health check.
+
+tmux.conf:
 
 ```tmux.conf
 bind-key -T copy-mode-vi Enter send -X copy-pipe-and-cancel "cat | /path/to/client.rb host:port | xsel -i --clipboard"
 ```
+
+`client.rb` also understands `$SSH_CLIENT`-style `"192.168.0.1 12345 22"`
+strings, so it can be pointed at `$SSH_CLIENT` directly when copying from a
+remote SSH session back to this machine.
+
+### process_suspend (`plugins/process_suspend/plugin.rb`)
+
+No HTTP routes — background-only. Registers a D-Bus session-bus service
+(`org.homectrl.Kwin`, object `/Kwin`, method `notify`) that a KWin script
+calls whenever a window's minimized state changes. When the window is
+Vivaldi, sends it `SIGSTOP`/`SIGCONT` on minimize/restore.
+
+### portal (`plugins/portal/`)
+
+Lists local services from `plugins/portal/services.yaml`, with an
+open-link and start/stop buttons that shell out to `systemctl --user`.
+
+```yaml
+services:
+  - name: some_service
+    description: "what it does"
+    url: "http://localhost:1234/"   # or null if it has no web UI
+    unit: some_service.service      # systemd --user unit name
+```
+
+- `GET /` redirects to `GET /portal` (the actual page).
+- `POST /portal/services/:name/start` and `.../stop` look `:name` up in
+  `services.yaml` and run `systemctl --user start|stop <unit>` on the
+  matched `unit` value only — the request parameter never reaches a shell,
+  so it can't be used to start/stop anything not already listed.
+- Bound to `127.0.0.1` by default (`portal.bind` in `config.yaml`): start/stop
+  is an unauthenticated, side-effecting action, so it's deliberately not
+  exposed to the LAN. Only visit it from this machine:
+  `http://localhost:8080/portal` (not the main `8001` port — that one only
+  knows about `tmux_copy`'s own routes).
+
+`services.yaml` is not tracked in git either — edit your own copy to list
+whatever `systemctl --user` units you actually have on this machine.
+
+## Adding a new plugin
+
+1. `plugins/<name>/plugin.rb`, `include Homectrl::Plugin`.
+   - HTTP routes: subclass `Sinatra::Base` and use the normal route DSL.
+   - Background work only: any class works, just define
+     `self.start_background(config)` returning a `Thread` (or `nil`).
+2. Add `<name>` to the `plugins:` list in `config.yaml`.
+
+That's it — `app.rb` requires whatever's listed, collects routed plugins
+into a `Rack::Cascade`, and joins any background threads' owning Puma
+threads (not the background threads themselves, so one plugin's background
+thread dying doesn't take the HTTP server down with it).

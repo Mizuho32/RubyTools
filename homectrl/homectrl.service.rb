@@ -1,6 +1,8 @@
+require 'pathname'
+
 srv = <<-"EOL"
 [Unit]
-Description=tmux clipboard sharer
+Description=local server: tmux share, portal, etc.
 
 [Service]
 Type=simple
@@ -12,6 +14,6 @@ EOL
 
 puts srv
 
-path = "#{ENV['HOME']}/.config/systemd/user/tmux_copy.service"
+path = "#{ENV['HOME']}/.config/systemd/user/#{Pathname(__FILE__).basename('.rb')}"
 puts "Wrote to #{path}"
 File.write(path, srv)
